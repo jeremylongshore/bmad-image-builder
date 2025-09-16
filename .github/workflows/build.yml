@@ -20,15 +20,17 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout builder
+        uses: actions/checkout@v4
+
       - name: Detect latest upstream semver tag
         id: detect
         run: |
-          git ls-remote --tags https://github.com/bmad-code-org/BMAD-METHOD.git | \
-          awk -F/ '/refs\/tags\/v?[0-9]+\.[0-9]+\.[0-9]+$/{print $3}' | sed 's/^v//' | sort -V | tail -n1 > latest.txt
-          echo "latest=$(cat latest.txt)" >> $GITHUB_OUTPUT
-
-      - name: Checkout builder
-        uses: actions/checkout@v4
+          # Use actual latest BMAD-METHOD version or fallback
+          latest=$(git ls-remote --tags https://github.com/bmad-code-org/BMAD-METHOD.git | \
+          awk -F/ '/refs\/tags\/v?[0-9]+\.[0-9]+\.[0-9]+$/{print $3}' | sed 's/^v//' | sort -V | tail -n1)
+          if [ -z "$latest" ]; then latest="4.43.0"; fi
+          echo "latest=$latest" >> $GITHUB_OUTPUT
 
       - name: Set version
         id: ver
@@ -44,20 +46,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
           build-args: |
             BMAD_REPO=https://github.com/bmad-code-org/BMAD-METHOD.git
-            BMAD_REF=v${{ steps.ver.outputs.version }}
+            BMAD_REF=main
           push: true
           tags: |
             ${{ env.IMAGE }}:${{ steps.ver.outputs.version }}
             ${{ env.IMAGE }}:${{ steps.ver.outputs.minor }}
             ${{ env.IMAGE }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Print digest
         run: |
