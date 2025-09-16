@@ -4,6 +4,11 @@ set -euo pipefail
 # Debug output
 echo "Args: $*" >&2
 
+# Handle both "bmad generate" and "generate" commands
+if [[ "$1" == "bmad" ]]; then
+  shift  # remove "bmad"
+fi
+
 cmd="$1"; shift || true
 case "$cmd" in
   generate)
