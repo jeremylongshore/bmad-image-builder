@@ -1,0 +1,65 @@
+name: Build & Publish BMAD Image
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "BMAD ref/tag"
+        required: true
+        default: "main"
+  schedule:
+    - cron: "23 8 * * *" # daily check
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/jeremylongshore/bmad
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Detect latest upstream semver tag
+        id: detect
+        run: |
+          git ls-remote --tags https://github.com/bmad-code-org/BMAD-METHOD.git | \
+          awk -F/ '/refs\/tags\/v?[0-9]+\.[0-9]+\.[0-9]+$/{print $3}' | sed 's/^v//' | sort -V | tail -n1 > latest.txt
+          echo "latest=$(cat latest.txt)" >> $GITHUB_OUTPUT
+
+      - name: Checkout builder
+        uses: actions/checkout@v4
+
+      - name: Set version
+        id: ver
+        run: |
+          if [ -n "${{ github.event.inputs.ref }}" ]; then V="${{ github.event.inputs.ref }}"; else V="${{ steps.detect.outputs.latest }}"; fi
+          echo "version=$V" >> $GITHUB_OUTPUT
+          echo "minor=${V%.*}" >> $GITHUB_OUTPUT
+
+      - name: Docker login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          build-args: |
+            BMAD_REPO=https://github.com/bmad-code-org/BMAD-METHOD.git
+            BMAD_REF=v${{ steps.ver.outputs.version }}
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.ver.outputs.version }}
+            ${{ env.IMAGE }}:${{ steps.ver.outputs.minor }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Print digest
+        run: |
+          echo "Digest(s):"
+          skopeo inspect docker://${{ env.IMAGE }}:${{ steps.ver.outputs.version }} | jq -r .Digest || true
