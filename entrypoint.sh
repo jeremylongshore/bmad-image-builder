@@ -30,16 +30,16 @@ case "$cmd" in
     [[ -n "$OUT" ]] || { echo "--out required"; exit 2; }
     [[ -f "$INPUT" ]] || { echo "input not found: $INPUT"; exit 2; }
 
-    mkdir -p "$OUT/docs/bmad"
+    mkdir -p "$OUT"
 
     # TODO: Integrate actual BMAD CLI when available
     # For now, simulate BMAD native AI agent workflow output
     echo "🤖 Starting BMAD multi-agent workflow..." >&2
     echo "📄 Input: $INPUT" >&2
-    echo "📁 BMAD Output: $OUT/docs/bmad/" >&2
+    echo "📁 BMAD Output: $OUT/" >&2
 
     # BMAD Native AI Agent Workflow
-    # This will be replaced with real BMAD CLI: bmad-cli generate --input "$INPUT" --output "$OUT/docs/bmad"
+    # This will be replaced with real BMAD CLI: bmad-cli generate --input "$INPUT" --output "$OUT"
     node -e "
       const fs = require('fs');
       const path = require('path');
@@ -167,15 +167,12 @@ The BMAD multi-agent workflow has processed your project brief through specializ
         }
       };
 
-      // Write BMAD native outputs
-      fs.writeFileSync(path.join('$OUT', 'docs', 'bmad', 'analysis-report.md'), bmadAnalysis);
-      fs.writeFileSync(path.join('$OUT', 'docs', 'bmad', 'agent-data.json'), JSON.stringify(bmadData, null, 2));
-
-      // Also write to root for verification compatibility
-      fs.writeFileSync(path.join('$OUT', 'prd.md'), bmadAnalysis);
+      // Write BMAD native outputs directly to mounted directory
+      fs.writeFileSync(path.join('$OUT', 'analysis-report.md'), bmadAnalysis);
+      fs.writeFileSync(path.join('$OUT', 'agent-data.json'), JSON.stringify(bmadData, null, 2));
 
       console.log(\`✅ BMAD native workflow completed\`);
-      console.log(\`📁 BMAD outputs: docs/bmad/analysis-report.md, docs/bmad/agent-data.json\`);
+      console.log(\`📁 BMAD outputs: analysis-report.md, agent-data.json\`);
       console.log(\`🔄 Next: Use extract-bmad.js and fill-templates.js to generate your 22 professional docs\`);
     "
     ;;
